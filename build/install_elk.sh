@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 script_path=$(cd $(dirname $0)/../;pwd)
 . $script_path/build/logutil.lib
 . $script_path/build/comm_lib
@@ -53,7 +53,7 @@ function install_nginx(){
         install_log ERROR "KIBANA_INSTALL" "{NGINX_PAK} is not exit,install JDK failed"
         exit 1
     fi
-    rpm -ivh ${NGINX_PAK} > /dev/null 2>&1
+    rpm -ivh $NGINX_PAK > /dev/null 2>&1
     rm /etc/nginx/conf.d/default.conf
     cp ../conf/kibana.conf /etc/nginx/conf.d/
     cd /usr/sbin/
@@ -65,15 +65,15 @@ function install_kibana(){
     install_log INFO "KIBANA_INSTALL" "install elastic search"
 
     cd ${PAK_PATH}
-    KIBANA_PAK = "kibana-6.1.3-linux-x86_64.tar.gz"
+    KIBANA_PAK="kibana-6.1.3-linux-x86_64.tar.gz"
     KIBANA_PATH="kibana-6.1.3-linux-x86_64"
     if [ ! -e ${KIBANA_PAK} ]; then
         install_log ERROR "KIBANA_INSTALL" "{KIBANA_PAK} is not exit,install JDK failed"
         exit 1
     fi
-    cp ${KIBANA_PAK} ${INSTALL_PATH}
-    tar -zxvf ${KIBANA_PAK} > /dev/null 2>&1
-    rm -rf ${KIBANA_PAK}
+    cp $KIBANA_PAK $INSTALL_PATH
+    tar -zxvf $KIBANA_PAK > /dev/null 2>&1
+    rm -rf $KIBANA_PAK
     sed -i '/#elasticsearch.url/c elasticsearch.url: "http://localhost:9200"' ${KIBANA_PATH}/config/kibana.yml
     cd ${KIBANA_PATH}
     bin/kibana
@@ -84,19 +84,22 @@ function install_elasticsearch(){
     install_log INFO "ELASTIC_SEARCH" "install elastic search"
 
     cd ${PAK_PATH}
-    ELASTICSEARCH_PAK = "elasticsearch-6.1.3.tar.gz"
-    ELASTICSEARCH_PATH = "elasticsearch-6.1.3"
+    ELASTICSEARCH_PAK="elasticsearch-6.1.3.tar.gz"
+    ELASTICSEARCH_PATH="elasticsearch-6.1.3"
     if [ ! -e "${ELASTICSEARCH_PAK}" ]; then
         install_log ERROR "ELASTIC_SEARCH" "{ELASTICSEARCH_PAK} is not exit,install JDK failed"
         exit 1
     fi
-    cp ${ELASTICSEARCH_PAK} ${INSTALL_PATH}
+    cp $ELASTICSEARCH_PAK $INSTALL_PATH
     cd ${INSTALL_PATH}
     tar -zxvf $ELASTICSEARCH_PAK > /dev/null 2>&1
-    rm -rf ${ELASTICSEARCH_PAK}
+    rm -rf $ELASTICSEARCH_PAK
     sed -i '/network.host/c network.host: localhost' ${ELASTICSEARCH_PATH}/config/elasticsearch.yml
-
+    groupadd elk
+    useraddd elk -g elk
+    chown -R elk:elk /data/service/$ELASTICSEARCH_PATH
     chmod +x bin/*
+    su elk
     bin/elasticsearch
 
 }
