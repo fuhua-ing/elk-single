@@ -2,7 +2,7 @@
 script_path=$(cd $(dirname $0)/../;pwd)
 . $script_path/build/logutil.lib
 . $script_path/build/comm_lib
-PAK_PATH="/root/elk/packages/"
+PAK_PATH="/root/elk-single/packages/"
 INSTALL_PATH="/data/service/"
 
 function elk_install_init(){
@@ -38,8 +38,8 @@ function install_logstash(){
     LOGSTASH_PATH="logstash-6.1.3"
     cp $LOGSTASH_PAK $INSTALL_PATH
     cd ${INSTALL_PATH}
-    tar -zxvf ${LOGSTASH_PAK}
-    rm -rf ${LOGSTASH_PAK}
+    tar -zxvf $LOGSTASH_PAK > /dev/null 2>&1
+    rm -rf $LOGSTASH_PAK
     cd ${INSTALL_PATH}
     bin/logstash
 
@@ -76,7 +76,7 @@ function install_kibana(){
     rm -rf $KIBANA_PAK
     sed -i '/#elasticsearch.url/c elasticsearch.url: "http://localhost:9200"' ${KIBANA_PATH}/config/kibana.yml
     cd ${KIBANA_PATH}
-    bin/kibana
+    (bin/kibana &)
 
 
 }
@@ -96,12 +96,11 @@ function install_elasticsearch(){
     rm -rf $ELASTICSEARCH_PAK
     sed -i '/network.host/c network.host: localhost' ${ELASTICSEARCH_PATH}/config/elasticsearch.yml
     groupadd elk
-    useraddd elk -g elk
+    useradd elk -g elk
     chown -R elk:elk /data/service/$ELASTICSEARCH_PATH
+    cd ${ELASTICSEARCH_PATH}
     chmod +x bin/*
-    su elk
-    bin/elasticsearch
-
+    su - elk -c "(/data/service/$ELASTICSEARCH_PATH/bin/elasticsearch &)"
 }
 
 function install_jdk(){
