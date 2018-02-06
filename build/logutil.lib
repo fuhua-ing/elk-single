@@ -1,0 +1,159 @@
+#!/bin/ksh
+IDEPLOY_PKG_PATH="/var/log/gezhiwei"
+################################################################################
+# Name       : logutil.lib
+# Describe   : common function about logs
+# Date       : 2008-12-03
+# Functions  :
+#              install_log        install log for mdsp script and component script.
+################################################################################
+
+################################################################################
+# name    : install_log
+# describe: install log for mdsp script and component script.
+# paramss:
+#			type		DEBUG, INFO, WARN, ERROR, ECHO, DB, FILE, CFG
+#			log_msg
+# output  : null
+# rerurn  : 0:success
+#           1:failed
+# invoker : public
+###############################################################################
+function install_log
+{
+    typeset DATE_STR=$(date '+%Y-%m-%d %H:%M:%S')
+    typeset LOG_FILE_NAME="${IDEPLOY_PKG_PATH}/log/install.log"
+    
+	#check parameters
+    if [ $# -lt 2 ];then
+       echo "[${DATE_STR}][ERROR]Failed to call install_log. Parameters number is incorrect."\
+        >>"${LOG_FILE_NAME}"
+       return 1
+    fi
+	typeset log_type="$1"
+	shift
+	typeset log_msg="$@"
+
+	#initial log file and process backup
+    log_file_init
+	
+    #process the branch from the type of log
+    case ${log_type} in
+		DEBUG)
+			echo "[${DATE_STR}][DEBUG]${log_msg}" >>"${LOG_FILE_NAME}"
+	  		;;
+	  	INFO) 
+			log_echo INFO ${log_msg}
+			echo "[${DATE_STR}][INFO]${log_msg}" >>"${LOG_FILE_NAME}"
+	  		;; 
+	  	WARN)
+			log_echo WARN ${log_msg}
+			echo "[${DATE_STR}][WARN]${log_msg}" >>"${LOG_FILE_NAME}"
+	  		;; 
+	  	ERROR)
+			log_echo ERROR ${log_msg}
+			echo "[${DATE_STR}][ERROR]${log_msg}" >>"${LOG_FILE_NAME}"
+	  		;;
+		ECHO)
+			log_echo ECHO ${log_msg}
+			echo "[${DATE_STR}][ECHO]${log_msg}" >>"${LOG_FILE_NAME}"
+			;;
+	  	DB)
+			log_echo INFO DB ${log_msg}
+			echo "[${DATE_STR}][DB]${log_msg}" >>"${LOG_FILE_NAME}"
+	  		;;
+	  	FILE)
+			log_echo FILE ${log_msg}
+			echo "[${DATE_STR}][FILE]${log_msg}" >>"${LOG_FILE_NAME}"
+	  		;;
+	  	CFG)
+			log_echo INFO CFG ${log_msg}
+			echo "[${DATE_STR}][CFG]${log_msg}" >>"${LOG_FILE_NAME}"
+	  		;;
+	  	*)
+			log_echo ${log_type} ${log_msg}
+			echo "[${DATE_STR}][ERROR]Unknown log type:${log_type}, log message: ${log_msg}" >>"${LOG_FILE_NAME}"
+			return 1
+	  		;;
+    esac
+	
+	return 0
+}
+
+################################################################################
+# function name: log_file_init
+# description  : initialize log file or deal log backup.
+# note         : the log file name must and only have one dot(.).
+# parameters   :
+#                null
+# input        : null
+# output       : null
+# return       :
+#                0 succeed
+#                1 failed
+################################################################################
+function log_file_init
+{
+	typeset LOG_FILE_DIR="${IDEPLOY_PKG_PATH}/log"	
+	typeset MAX_LOG_FILE_SIZE=10485760
+	typeset MAX_LOG_FILE_BACKUP=10
+	typeset log_file_name="${LOG_FILE_DIR}/install.log"
+	
+	if [ ! -f "${log_file_name}" ]; then		
+		if [ ! -d "${LOG_FILE_DIR}" ]; then
+			mkdir -p "${LOG_FILE_DIR}" > /dev/null 2>&1
+			typeset rt=$?
+			chmod 777 "${LOG_FILE_DIR}" > /dev/null 2>&1
+			if [ $? -ne 0 -o ${rt} -ne 0 ]; then
+				#echo "Creating log dir: ${LOG_FILE_DIR} failed."
+				return 1
+			fi
+		fi
+		
+		touch "${log_file_name}" > /dev/null 2>&1
+		typeset rt=$?
+		chmod 777 "${log_file_name}" > /dev/null 2>&1
+		if [ $? -ne 0 -o ${rt} -ne 0 ]; then
+			#echo "Creating log file: ${log_file_name} failed."
+			return 1
+		fi
+		
+		return 0
+	fi
+	
+	typeset file_size=$(wc -c "${log_file_name}" | awk '{ print $1; }')
+	if [ ${file_size} -ge ${MAX_LOG_FILE_SIZE} ]; then
+		# backup log file name format: ${log_file_name}.yyyymmdd.n
+		typeset log_file_base_name=$(basename "${log_file_name}")
+		typeset bak_log_file_list=$((cd "${LOG_FILE_DIR}"; ls) | sed -n "/^${log_file_base_name}\.[0-9]\{14\}\.[1-9][0-9]*\$/p" | awk -F. -vmaxnum=${MAX_LOG_FILE_BACKUP} '{ if ($4 <= maxnum ) { print $0; } }' | sort -r -t. -k4 -n)
+		if [ "x${bak_log_file_list}" != "x" ]; then
+			for logfile in ${bak_log_file_list}
+			do
+				typeset leadpart=$(echo "${logfile}" | cut -d. -f1-3)
+				typeset suffix=$(echo "${logfile}" | cut -d. -f4)
+				if [ ${suffix} -eq ${MAX_LOG_FILE_BACKUP} ]; then
+					rm -f "${LOG_FILE_DIR}/${logfile}"
+					continue
+				fi
+				
+				((suffix=suffix+1))
+				(cd "${LOG_FILE_DIR}"; mv -f "${logfile}" "${leadpart}.${suffix}")
+			done
+		fi
+		
+		mv -f "${log_file_name}" "${log_file_name}.$(date +'%Y%m%d%H%M%S').1"
+		
+		# recreate a log file
+		touch "${log_file_name}" > /dev/null 2>&1
+		typeset rt=$?
+		chmod 777 "${log_file_name}" > /dev/null 2>&1
+		if [ $? -ne 0 -o ${rt} -ne 0 ]; then
+			#echo "Creating log file: ${log_file_name} failed."
+			return 1
+		fi
+		
+		return 0
+	fi
+	
+	return 0
+}
