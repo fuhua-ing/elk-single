@@ -18,6 +18,7 @@ function install_elk(){
     install_jdk
     log_echo RATE 30
     install_elasticsearch
+    sleep 5
     log_echo RATE 34
     install_kibana
     log_echo RATE 38
